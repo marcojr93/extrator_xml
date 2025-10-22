@@ -4,6 +4,7 @@ import xml.etree.ElementTree as ET
 from io import BytesIO
 from criptografia import SecureDataProcessor
 from agents.validador import buscar_regras_fiscais_nfe
+from agents.analista import analisar_discrepancias_nfe
 
 
 
@@ -14,6 +15,17 @@ def extrair_dados_xml(xml_content):
 
     def get_text(tag, parent=infNFe, default="0"):
         return parent.findtext(tag, default=default, namespaces=ns)
+    
+    def converter_codigo_uf(codigo_uf):
+        """Converte código numérico da UF para sigla"""
+        mapa_uf = {
+            '11': 'RO', '12': 'AC', '13': 'AM', '14': 'RR', '15': 'PA', '16': 'AP', '17': 'TO',
+            '21': 'MA', '22': 'PI', '23': 'CE', '24': 'RN', '25': 'PB', '26': 'PE', '27': 'AL', '28': 'SE', '29': 'BA',
+            '31': 'MG', '32': 'ES', '33': 'RJ', '35': 'SP',
+            '41': 'PR', '42': 'SC', '43': 'RS',
+            '50': 'MS', '51': 'MT', '52': 'GO', '53': 'DF'
+        }
+        return mapa_uf.get(str(codigo_uf), codigo_uf)
 
     dados = {}
 
@@ -27,7 +39,10 @@ def extrair_dados_xml(xml_content):
         dados["Natureza Operação"] = get_text("nfe:natOp", ide)
         dados["Tipo NF"] = get_text("nfe:tpNF", ide)
         dados["Modelo"] = get_text("nfe:mod", ide)
-        dados["UF"] = get_text("nfe:cUF", ide)
+        # Converter código UF para sigla
+        codigo_uf = get_text("nfe:cUF", ide)
+        dados["UF"] = converter_codigo_uf(codigo_uf)
+        dados["UF Código"] = codigo_uf  # Manter código original também
         dados["Finalidade"] = get_text("nfe:finNFe", ide)
 
     # --- EMITENTE ---
@@ -37,7 +52,9 @@ def extrair_dados_xml(xml_content):
         dados["Emitente Nome"] = get_text("nfe:xNome", emit)
         dados["Emitente Fantasia"] = get_text("nfe:xFant", emit)
         dados["Emitente IE"] = get_text("nfe:IE", emit)
-        dados["Emitente UF"] = get_text("nfe:enderEmit/nfe:UF", emit)
+        # UF do emitente com conversão
+        uf_emit = get_text("nfe:enderEmit/nfe:UF", emit)
+        dados["Emitente UF"] = converter_codigo_uf(uf_emit) if uf_emit != "0" else uf_emit
         dados["Emitente Município"] = get_text("nfe:enderEmit/nfe:xMun", emit)
         dados["Emitente CEP"] = get_text("nfe:enderEmit/nfe:CEP", emit)
 
@@ -47,7 +64,9 @@ def extrair_dados_xml(xml_content):
         dados["Destinatário CNPJ"] = get_text("nfe:CNPJ", dest)
         dados["Destinatário Nome"] = get_text("nfe:xNome", dest)
         dados["Destinatário IE"] = get_text("nfe:IE", dest)
-        dados["Destinatário UF"] = get_text("nfe:enderDest/nfe:UF", dest)
+        # UF do destinatário com conversão (CRÍTICO para ICMS)
+        uf_dest = get_text("nfe:enderDest/nfe:UF", dest)
+        dados["Destinatário UF"] = converter_codigo_uf(uf_dest) if uf_dest != "0" else uf_dest
         dados["Destinatário Município"] = get_text("nfe:enderDest/nfe:xMun", dest)
         dados["Destinatário CEP"] = get_text("nfe:enderDest/nfe:CEP", dest)
 
@@ -60,7 +79,9 @@ def extrair_dados_xml(xml_content):
         if transporta is not None:
             dados["Transportadora Nome"] = get_text("nfe:xNome", transporta)
             dados["Transportadora CNPJ"] = get_text("nfe:CNPJ", transporta)
-            dados["Transportadora UF"] = get_text("nfe:UF", transporta)
+            # UF da transportadora com conversão
+            uf_transp = get_text("nfe:UF", transporta)
+            dados["Transportadora UF"] = converter_codigo_uf(uf_transp) if uf_transp != "0" else uf_transp
         if vol is not None:
             dados["Qtde Volumes"] = get_text("nfe:qVol", vol)
             dados["Peso Líquido"] = get_text("nfe:pesoL", vol)
@@ -176,6 +197,11 @@ def welcome_screen():
                         produtos_criptografado
                     )
                     
+                    # Armazenar resultado no session_state para uso posterior
+                    st.session_state['resultado_validador'] = resultado
+                    st.session_state['cabecalho_dados'] = cabecalho_criptografado
+                    st.session_state['produtos_dados'] = produtos_criptografado
+                    
                     if resultado['status'] == 'sucesso':
                         # Mostrar dropdown com resumo das regras
                         st.subheader("📋 Regras Fiscais Encontradas")
@@ -237,6 +263,69 @@ def welcome_screen():
                     st.error("Módulo de validação fiscal não encontrado")
                 except Exception as e:
                     st.error(f"Erro na análise fiscal: {str(e)}")
+
+        # Botão do Analista - Tratar Discrepâncias (só aparece após validação)
+        if 'resultado_validador' in st.session_state:
+            resultado_val = st.session_state['resultado_validador']
+            discrepancias = resultado_val.get('discrepancias', [])
+            
+            if discrepancias:
+                st.markdown("---")
+                st.subheader("🎯 Análise de Discrepâncias")
+                
+                # Mostrar resumo das discrepâncias encontradas
+                st.info(f"⚠️ {len(discrepancias)} discrepância(s) encontrada(s) que necessitam de tratamento.")
+                
+                if st.button("🔧 Tratar Discrepâncias", type="secondary", help="Analisa as discrepâncias encontradas e propõe soluções baseadas em Lucro Real"):
+                    with st.spinner("Analisando discrepâncias com IA especializada..."):
+                        try:
+                            # Executar análise de discrepâncias
+                            resultado_analista = analisar_discrepancias_nfe(
+                                st.session_state['cabecalho_dados'],
+                                st.session_state['produtos_dados'],
+                                resultado_val
+                            )
+                            
+                            if resultado_analista['status'] in ['sucesso', 'parcial']:
+                                # Mostrar relatório do analista
+                                st.subheader("📊 Relatório de Tratamento de Discrepâncias")
+                                
+                                with st.expander("📋 Relatório Completo de Análise", expanded=True):
+                                    st.markdown(resultado_analista['relatorio_final'])
+                                
+                                # Botão para download do relatório
+                                relatorio_download = resultado_analista['relatorio_final']
+                                st.download_button(
+                                    label="📄 Baixar Relatório de Análise",
+                                    data=relatorio_download,
+                                    file_name=f"relatorio_analise_discrepancias_{resultado_analista['timestamp_analise'].replace(':', '-').replace(' ', '_')}.md",
+                                    mime="text/markdown"
+                                )
+                                
+                                # Exibir resumo das ações
+                                plano = resultado_analista.get('plano_acao_consolidado', {})
+                                if plano.get('acoes_imediatas'):
+                                    st.success("✅ Análise concluída! Verifique as ações recomendadas no relatório.")
+                                    
+                                    with st.expander("⚡ Ações Imediatas Recomendadas", expanded=False):
+                                        for acao in plano['acoes_imediatas']:
+                                            st.write(f"• {acao}")
+                                
+                                if plano.get('consultoria_necessaria'):
+                                    st.warning("👨‍💼 Algumas questões necessitam de consultoria especializada. Consulte o relatório.")
+                                
+                            else:
+                                st.error("Erro na análise de discrepâncias")
+                                st.write(resultado_analista['relatorio_final'])
+                                
+                        except ImportError:
+                            st.error("Módulo de análise fiscal não encontrado")
+                        except Exception as e:
+                            st.error(f"Erro na análise de discrepâncias: {str(e)}")
+            else:
+                if resultado_val.get('status') == 'sucesso':
+                    st.success("✅ Nenhuma discrepância crítica foi identificada na validação!")
+                    st.info("💡 A nota fiscal está em conformidade com as regras analisadas.")
 
         # Criação do Excel para download
         output = BytesIO()
