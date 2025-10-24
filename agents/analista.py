@@ -106,7 +106,7 @@ CONTEXTO IMPORTANTE:
 - REGIME: LUCRO REAL (sempre considerar este regime)
 - FOCO: Análise de discrepâncias e correções
 - FONTE: Conhecimento da nuvem/legislação atualizada
-- DADOS: Os dados da NFe fornecidos estão CRIPTOGRAFADOS por segurança
+- DADOS: Dados sensíveis como CNPJ e nomes não devem ser divulgados ou utilizados pela LLM
 - FORMATAÇÃO: Evite emojis e mantenha uma resposta com teor corporativo
 
 IMPORTANTE SOBRE DADOS CRIPTOGRAFADOS:
@@ -114,6 +114,7 @@ IMPORTANTE SOBRE DADOS CRIPTOGRAFADOS:
 - Use padrões e estruturas dos dados criptografados para análise
 - Foque nos aspectos fiscais e tributários que podem ser identificados
 - Considere valores, alíquotas, e classificações fiscais para análise
+- Se não houver percentagens das alíquotas, utilize os valores de tributos e impostos para o cálculo das mesmas e avaliação se estão corretas  
 - Não tente descriptografar os dados - trabalhe com eles como estão
 
 ATENÇÃO ESPECIAL PARA UFs (UNIDADES FEDERATIVAS):

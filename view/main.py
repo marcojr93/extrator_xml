@@ -5,6 +5,7 @@ from io import BytesIO
 from criptografia import SecureDataProcessor
 from agents.validador import buscar_regras_fiscais_nfe
 from agents.analista import analisar_discrepancias_nfe
+from agents.tributarista import calcular_delta_tributario
 
 
 
@@ -311,8 +312,8 @@ def welcome_screen():
                                         for acao in plano['acoes_imediatas']:
                                             st.write(f"• {acao}")
                                 
-                                if plano.get('consultoria_necessaria'):
-                                    st.warning("👨‍💼 Algumas questões necessitam de consultoria especializada. Consulte o relatório.")
+                                # Armazenar resultado do analista para o tributarista
+                                st.session_state['resultado_analista'] = resultado_analista
                                 
                             else:
                                 st.error("Erro na análise de discrepâncias")
@@ -326,6 +327,124 @@ def welcome_screen():
                 if resultado_val.get('status') == 'sucesso':
                     st.success("✅ Nenhuma discrepância crítica foi identificada na validação!")
                     st.info("💡 A nota fiscal está em conformidade com as regras analisadas.")
+
+        # Botão do Tributarista - Calcular Delta (só aparece após análise do analista)
+        if 'resultado_analista' in st.session_state and 'resultado_validador' in st.session_state:
+            st.markdown("---")
+            st.subheader("🧮 Cálculo Tributário")
+            
+            resultado_analista_stored = st.session_state['resultado_analista']
+            resultado_validador_stored = st.session_state['resultado_validador']
+            
+            # Verificar se há dados suficientes para cálculo
+            if resultado_analista_stored.get('status') in ['sucesso', 'parcial']:
+                st.info("💰 Calcule as diferenças de impostos e possíveis multas baseado na análise realizada.")
+                
+                if st.button("🧮 Calcular Delta", type="primary", help="Calcula diferenças entre impostos pagos vs devidos e possíveis multas"):
+                    with st.spinner("Calculando delta tributário com IA especializada..."):
+                        try:
+                            # Executar cálculo tributário
+                            resultado_tributarista = calcular_delta_tributario(
+                                st.session_state['cabecalho_dados'],
+                                st.session_state['produtos_dados'],
+                                resultado_analista_stored,
+                                resultado_validador_stored
+                            )
+                            
+                            if resultado_tributarista['status'] in ['sucesso', 'parcial']:
+                                # Mostrar relatório híbrido do tributarista
+                                st.subheader("💰 Relatório de Cálculo Tributário")
+                                
+                                with st.expander("🧮 Relatório Completo de Cálculos", expanded=True):
+                                    st.markdown(resultado_tributarista['relatorio_hibrido'])
+                                
+                                # Botões para download
+                                col1, col2 = st.columns(2)
+                                
+                                with col1:
+                                    relatorio_tributario = resultado_tributarista['relatorio_hibrido']
+                                    st.download_button(
+                                        label="📊 Baixar Relatório Tributário",
+                                        data=relatorio_tributario,
+                                        file_name=f"relatorio_calculo_tributario_{resultado_tributarista['timestamp_calculo'].replace(':', '-').replace(' ', '_')}.md",
+                                        mime="text/markdown"
+                                    )
+                                
+                                with col2:
+                                    # Gerar CSV da tabela resumo se disponível
+                                    tabela_resumo = resultado_tributarista.get('tabela_resumo', {})
+                                    if tabela_resumo.get('linhas'):
+                                        import io
+                                        csv_buffer = io.StringIO()
+                                        
+                                        # Escrever cabeçalho
+                                        if tabela_resumo.get('cabecalho'):
+                                            csv_buffer.write(','.join(tabela_resumo['cabecalho']) + '\n')
+                                        
+                                        # Escrever linhas
+                                        for linha in tabela_resumo['linhas']:
+                                            csv_buffer.write(','.join(str(item) for item in linha) + '\n')
+                                        
+                                        st.download_button(
+                                            label="📋 Baixar Tabela (CSV)",
+                                            data=csv_buffer.getvalue(),
+                                            file_name=f"tabela_delta_impostos_{resultado_tributarista['timestamp_calculo'].replace(':', '-').replace(' ', '_')}.csv",
+                                            mime="text/csv"
+                                        )
+                                
+                                # Exibir alertas críticos
+                                analise_riscos = resultado_tributarista.get('analise_riscos', {})
+                                if analise_riscos:
+                                    risco = analise_riscos.get('risco_autuacao', '').lower()
+                                    if risco == 'alto':
+                                        st.error("🚨 RISCO ALTO de autuação fiscal identificado!")
+                                    elif risco == 'médio':
+                                        st.warning("⚠️ RISCO MÉDIO de autuação fiscal identificado.")
+                                    
+                                    if analise_riscos.get('valor_total_exposicao'):
+                                        valor_exposicao = analise_riscos['valor_total_exposicao']
+                                        st.metric(
+                                            label="💸 Valor Total de Exposição",
+                                            value=f"R$ {valor_exposicao:,.2f}",
+                                            delta=None
+                                        )
+                                
+                                # Mostrar resumo das multas se existirem
+                                calculo_multas = resultado_tributarista.get('calculo_multas', {})
+                                if calculo_multas.get('total_multas'):
+                                    with st.expander("⚠️ Resumo de Multas Potenciais", expanded=False):
+                                        col1, col2, col3 = st.columns(3)
+                                        
+                                        with col1:
+                                            st.metric(
+                                                label="💸 Total Multas",
+                                                value=f"R$ {calculo_multas['total_multas']:,.2f}"
+                                            )
+                                        
+                                        with col2:
+                                            st.metric(
+                                                label="📉 Multa Mínima",
+                                                value=f"R$ {calculo_multas.get('multa_minima', 0):,.2f}"
+                                            )
+                                        
+                                        with col3:
+                                            st.metric(
+                                                label="📈 Multa Máxima", 
+                                                value=f"R$ {calculo_multas.get('multa_maxima', 0):,.2f}"
+                                            )
+                                
+                                st.success("✅ Cálculos concluídos! Verifique o relatório detalhado.")
+                                
+                            else:
+                                st.error("Erro no cálculo tributário")
+                                st.write(resultado_tributarista['relatorio_hibrido'])
+                                
+                        except ImportError:
+                            st.error("Módulo de cálculo tributário não encontrado")
+                        except Exception as e:
+                            st.error(f"Erro no cálculo tributário: {str(e)}")
+            else:
+                st.warning("⚠️ Execute primeiro a análise de discrepâncias para calcular o delta tributário.")
 
         # Criação do Excel para download
         output = BytesIO()
