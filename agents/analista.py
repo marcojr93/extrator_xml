@@ -71,11 +71,11 @@ class AnalistaFiscal:
                     response = test_llm.invoke("OK")
                     if response and hasattr(response, 'content') and response.content:
                         self.llm = test_llm
-                        print(f"✅ LLM Analista inicializada: {modelo}")
+                        print(f"LLM Analista inicializada: {modelo}")
                         break
                         
                 except Exception as e:
-                    print(f"⚠️ Modelo {modelo} indisponível: {str(e)[:100]}")
+                    print(f"Modelo {modelo} indisponível: {str(e)[:100]}")
                     continue
 
             if not self.llm:
@@ -85,7 +85,7 @@ class AnalistaFiscal:
             self._criar_chain()
             
         except Exception as e:
-            print(f"❌ Erro ao inicializar LLM Analista: {e}")
+            print(f"Erro ao inicializar LLM Analista: {e}")
             self.llm = None
             self.chain = None
 
@@ -325,7 +325,7 @@ Analise essas discrepâncias considerando o regime de LUCRO REAL e forneça solu
         
         for campo in campos_fiscais:
             if campo in cabecalho and pd.notna(cabecalho[campo]):
-                info_relevante.append(f"📋 {campo}: {cabecalho[campo]}")
+                info_relevante.append(f"{campo}: {cabecalho[campo]}")
         
         # Outros campos (criptografados)
         for campo, valor in cabecalho.items():
@@ -409,20 +409,20 @@ Analise essas discrepâncias considerando o regime de LUCRO REAL e forneça solu
 
     def _gerar_relatorio_final(self, resultado: Dict[str, Any]) -> str:
         """Gera relatório final formatado com plano de ação"""
-        relatorio = "# 🎯 RELATÓRIO ANALÍTICO - TRATAMENTO DE DISCREPÂNCIAS\n\n"
+        relatorio = "# RELATÓRIO ANALÍTICO - TRATAMENTO DE DISCREPÂNCIAS\n\n"
         
         # Cabeçalho
-        status_emoji = {"sucesso": "✅", "erro": "❌", "parcial": "⚠️"}
-        emoji = status_emoji.get(resultado.get('status', 'erro'), "❓")
+        status_emoji = {"sucesso": "", "erro": "", "parcial": ""}
+        emoji = status_emoji.get(resultado.get('status', 'erro'), "")
         
         relatorio += f"**{emoji} Status da Análise:** {resultado.get('status', 'Desconhecido')}\n"
-        relatorio += f"**📊 Regime Tributário:** {resultado.get('regime_tributario', 'LUCRO REAL')}\n"
-        relatorio += f"**🔍 Discrepâncias Analisadas:** {resultado.get('discrepancias_analisadas', 0)}\n"
-        relatorio += f"**⏰ Timestamp:** {resultado.get('timestamp_analise', 'N/A')}\n\n"
+        relatorio += f"**Regime Tributário:** {resultado.get('regime_tributario', 'LUCRO REAL')}\n"
+        relatorio += f"**Discrepâncias Analisadas:** {resultado.get('discrepancias_analisadas', 0)}\n"
+        relatorio += f"**Timestamp:** {resultado.get('timestamp_analise', 'N/A')}\n\n"
         
         # Resumo executivo
         if resultado.get('resumo_executivo'):
-            relatorio += "## 📋 RESUMO EXECUTIVO\n\n"
+            relatorio += "## RESUMO EXECUTIVO\n\n"
             relatorio += resultado['resumo_executivo'] + "\n\n"
         
         # Análises detalhadas
@@ -432,20 +432,20 @@ Analise essas discrepâncias considerando o regime de LUCRO REAL e forneça solu
             for i, analise in enumerate(analises, 1):
                 complexidade_emoji = {"Simples": "🟢", "Médio": "🟡", "Complexo": "🔴"}
                 emoji_comp = complexidade_emoji.get(analise.get('grau_complexidade', 'Médio'), "⚪")
-                consultoria_emoji = "👨‍💼" if analise.get('requer_consultoria', False) else "🔧"
+                consultoria_emoji = "👨‍" if analise.get('requer_consultoria', False) else ""
                 
                 relatorio += f"### {i}. {analise.get('discrepancia_original', 'N/A')} {emoji_comp} {consultoria_emoji}\n\n"
-                relatorio += f"**🔍 Análise Técnica:**\n{analise.get('analise_tecnica', 'N/A')}\n\n"
+                relatorio += f"**Análise Técnica:**\n{analise.get('analise_tecnica', 'N/A')}\n\n"
                 relatorio += f"**💡 Solução Proposta:**\n{analise.get('solucao_proposta', 'N/A')}\n\n"
                 
                 if analise.get('base_legal'):
                     relatorio += f"**⚖️ Base Legal:**\n{analise['base_legal']}\n\n"
                 
-                relatorio += f"**⚡ Ação Imediata:**\n{analise.get('acao_imediata', 'N/A')}\n\n"
+                relatorio += f"**Ação Imediata:**\n{analise.get('acao_imediata', 'N/A')}\n\n"
                 relatorio += f"**🛡️ Ação Preventiva:**\n{analise.get('acao_preventiva', 'N/A')}\n\n"
                 
                 if analise.get('dados_necessarios'):
-                    relatorio += f"**📄 Dados Necessários:**\n"
+                    relatorio += f"**Dados Necessários:**\n"
                     for dado in analise['dados_necessarios']:
                         relatorio += f"   • {dado}\n"
                     relatorio += "\n"
@@ -453,7 +453,7 @@ Analise essas discrepâncias considerando o regime de LUCRO REAL e forneça solu
         # Oportunidades adicionais
         oportunidades = resultado.get('oportunidades_adicionais', [])
         if oportunidades:
-            relatorio += "## 🎯 OPORTUNIDADES ADICIONAIS IDENTIFICADAS\n\n"
+            relatorio += "## OPORTUNIDADES ADICIONAIS IDENTIFICADAS\n\n"
             for i, oport in enumerate(oportunidades, 1):
                 relatorio += f"**{i}. {oport.get('tipo', 'N/A')}**\n"
                 relatorio += f"   • **Descrição:** {oport.get('descricao', 'N/A')}\n"
@@ -463,10 +463,10 @@ Analise essas discrepâncias considerando o regime de LUCRO REAL e forneça solu
         # Plano de ação consolidado
         plano = resultado.get('plano_acao_consolidado', {})
         if plano:
-            relatorio += "## 📋 PLANO DE AÇÃO CONSOLIDADO\n\n"
+            relatorio += "## PLANO DE AÇÃO CONSOLIDADO\n\n"
             
             if plano.get('acoes_imediatas'):
-                relatorio += "### ⚡ AÇÕES IMEDIATAS\n"
+                relatorio += "### AÇÕES IMEDIATAS\n"
                 for acao in plano['acoes_imediatas']:
                     relatorio += f"• {acao}\n"
                 relatorio += "\n"
@@ -478,31 +478,31 @@ Analise essas discrepâncias considerando o regime de LUCRO REAL e forneça solu
                 relatorio += "\n"
             
             if plano.get('consultoria_necessaria'):
-                relatorio += "### 👨‍💼 CONSULTORIA NECESSÁRIA\n"
+                relatorio += "### 👨‍CONSULTORIA NECESSÁRIA\n"
                 for item in plano['consultoria_necessaria']:
                     relatorio += f"• {item}\n"
                 relatorio += "\n"
             
             if plano.get('documentos_necessarios'):
-                relatorio += "### 📄 DOCUMENTOS A PROVIDENCIAR\n"
+                relatorio += "### DOCUMENTOS A PROVIDENCIAR\n"
                 for doc in plano['documentos_necessarios']:
                     relatorio += f"• {doc}\n"
                 relatorio += "\n"
             
             if plano.get('riscos_identificados'):
-                relatorio += "### ⚠️ RISCOS SE NÃO CORRIGIR\n"
+                relatorio += "### RISCOS SE NÃO CORRIGIR\n"
                 for risco in plano['riscos_identificados']:
                     relatorio += f"• {risco}\n"
                 relatorio += "\n"
         
         # Limitações
         if resultado.get('limitacoes_analise'):
-            relatorio += "## ⚠️ LIMITAÇÕES DA ANÁLISE\n\n"
+            relatorio += "## LIMITAÇÕES DA ANÁLISE\n\n"
             relatorio += resultado['limitacoes_analise'] + "\n\n"
         
         # Detalhes técnicos
         if resultado.get('detalhes_tecnicos'):
-            relatorio += "## 🔧 DETALHES TÉCNICOS\n\n"
+            relatorio += "## DETALHES TÉCNICOS\n\n"
             relatorio += resultado['detalhes_tecnicos'] + "\n\n"
         
         # Rodapé
@@ -522,7 +522,7 @@ Analise essas discrepâncias considerando o regime de LUCRO REAL e forneça solu
             'oportunidades_adicionais': [],
             'plano_acao_consolidado': {},
             'limitacoes_analise': '',
-            'relatorio_final': "# ✅ ANÁLISE CONCLUÍDA\n\n**Nenhuma discrepância identificada para tratamento.**\n\nTodas as verificações do validador foram aprovadas. A nota fiscal está em conformidade com as regras analisadas.",
+            'relatorio_final': "# ANÁLISE CONCLUÍDA\n\n**Nenhuma discrepância identificada para tratamento.**\n\nTodas as verificações do validador foram aprovadas. A nota fiscal está em conformidade com as regras analisadas.",
             'modelo_utilizado': getattr(self.llm, 'model_name', 'gemini') if self.llm else 'N/A',
             'timestamp_analise': pd.Timestamp.now().strftime('%Y-%m-%d %H:%M:%S')
         }
@@ -537,7 +537,7 @@ Analise essas discrepâncias considerando o regime de LUCRO REAL e forneça solu
             'oportunidades_adicionais': [],
             'plano_acao_consolidado': {},
             'limitacoes_analise': 'LLM não inicializada',
-            'relatorio_final': "❌ **Erro:** LLM não inicializada. Verifique a configuração da GOOGLE_API_KEY.",
+            'relatorio_final': "**Erro:** LLM não inicializada. Verifique a configuração da GOOGLE_API_KEY.",
             'modelo_utilizado': 'N/A',
             'timestamp_analise': pd.Timestamp.now().strftime('%Y-%m-%d %H:%M:%S')
         }
@@ -552,7 +552,7 @@ Analise essas discrepâncias considerando o regime de LUCRO REAL e forneça solu
             'oportunidades_adicionais': [],
             'plano_acao_consolidado': {},
             'limitacoes_analise': 'Erro de formato na resposta da LLM',
-            'relatorio_final': f"❌ **Erro de formato:** A LLM retornou resposta em formato inválido.\n\nResposta: {resposta[:500]}...",
+            'relatorio_final': f"**Erro de formato:** A LLM retornou resposta em formato inválido.\n\nResposta: {resposta[:500]}...",
             'modelo_utilizado': getattr(self.llm, 'model_name', 'gemini') if self.llm else 'N/A',
             'timestamp_analise': pd.Timestamp.now().strftime('%Y-%m-%d %H:%M:%S')
         }
@@ -567,7 +567,7 @@ Analise essas discrepâncias considerando o regime de LUCRO REAL e forneça solu
             'oportunidades_adicionais': [],
             'plano_acao_consolidado': {},
             'limitacoes_analise': f'Erro durante análise: {erro}',
-            'relatorio_final': f"❌ **Erro na análise:** {erro}",
+            'relatorio_final': f"**Erro na análise:** {erro}",
             'modelo_utilizado': getattr(self.llm, 'model_name', 'gemini') if self.llm else 'N/A',
             'timestamp_analise': pd.Timestamp.now().strftime('%Y-%m-%d %H:%M:%S')
         }
@@ -603,14 +603,14 @@ def analisar_discrepancias_nfe(cabecalho_criptografado: pd.DataFrame,
             'oportunidades_adicionais': [],
             'plano_acao_consolidado': {},
             'limitacoes_analise': f'Erro crítico: {str(e)}',
-            'relatorio_final': f"❌ **Erro crítico:** {str(e)}",
+            'relatorio_final': f"**Erro crítico:** {str(e)}",
             'modelo_utilizado': 'N/A',
             'timestamp_analise': pd.Timestamp.now().strftime('%Y-%m-%d %H:%M:%S')
         }
 
 
 if __name__ == "__main__":
-    print("🎯 Analista Fiscal - Tratamento de Discrepâncias - Teste Local\n")
+    print("Analista Fiscal - Tratamento de Discrepâncias - Teste Local\n")
     
     # Teste básico com discrepâncias simuladas
     cabecalho_teste = pd.DataFrame({
@@ -659,11 +659,11 @@ if __name__ == "__main__":
     # Executar análise
     resultado = analisar_discrepancias_nfe(cabecalho_teste, produtos_teste, resultado_validador_teste)
     
-    print(f"🎯 Status: {resultado['status']}")
-    print(f"📊 Regime: {resultado['regime_tributario']}")
-    print(f"🔍 Discrepâncias analisadas: {resultado['discrepancias_analisadas']}")
+    print(f"Status: {resultado['status']}")
+    print(f"Regime: {resultado['regime_tributario']}")
+    print(f"Discrepâncias analisadas: {resultado['discrepancias_analisadas']}")
     print(f"💡 Análises detalhadas: {len(resultado['analises_detalhadas'])}")
-    print(f"🤖 Modelo: {resultado.get('modelo_utilizado', 'N/A')}")
+    print(f"Modelo: {resultado.get('modelo_utilizado', 'N/A')}")
     
     print("\n" + "="*70)
     print("RELATÓRIO FINAL:")

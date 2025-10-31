@@ -71,11 +71,11 @@ class TributaristaFiscal:
                     response = test_llm.invoke("OK")
                     if response and hasattr(response, 'content') and response.content:
                         self.llm = test_llm
-                        print(f"✅ LLM Tributarista inicializada: {modelo}")
+                        print(f"LLM Tributarista inicializada: {modelo}")
                         break
                         
                 except Exception as e:
-                    print(f"⚠️ Modelo {modelo} indisponível: {str(e)[:100]}")
+                    print(f"Modelo {modelo} indisponível: {str(e)[:100]}")
                     continue
 
             if not self.llm:
@@ -85,7 +85,7 @@ class TributaristaFiscal:
             self._criar_chain()
             
         except Exception as e:
-            print(f"❌ Erro ao inicializar LLM Tributarista: {e}")
+            print(f"Erro ao inicializar LLM Tributarista: {e}")
             self.llm = None
             self.chain = None
 
@@ -316,13 +316,13 @@ Realize os cálculos considerando regime de LUCRO REAL e apresente resultados em
         for campo in campos_tributarios:
             if campo in cabecalho and pd.notna(cabecalho[campo]):
                 valor = cabecalho[campo]
-                info_relevante.append(f"💰 {campo}: {valor}")
+                info_relevante.append(f"{campo}: {valor}")
         
         # Outros campos do cabeçalho
         info_relevante.append("=== OUTROS DADOS DO CABEÇALHO ===")
         for campo, valor in cabecalho.items():
             if campo not in campos_tributarios and pd.notna(valor) and str(valor).strip():
-                info_relevante.append(f"📋 {campo}: {valor}")
+                info_relevante.append(f"{campo}: {valor}")
                 
         return "\n".join(info_relevante) if info_relevante else "Dados básicos do cabeçalho"
 
@@ -459,18 +459,18 @@ Realize os cálculos considerando regime de LUCRO REAL e apresente resultados em
         relatorio = "# 🧮 RELATÓRIO TRIBUTÁRIO - CÁLCULO DE DELTA E MULTAS\n\n"
         
         # Cabeçalho
-        status_emoji = {"sucesso": "✅", "erro": "❌", "parcial": "⚠️"}
-        emoji = status_emoji.get(resultado.get('status', 'erro'), "❓")
+        status_emoji = {"sucesso": "", "erro": "", "parcial": ""}
+        emoji = status_emoji.get(resultado.get('status', 'erro'), "")
         
         relatorio += f"**{emoji} Status do Cálculo:** {resultado.get('status', 'Desconhecido')}\n"
-        relatorio += f"**📊 Regime Tributário:** {resultado.get('regime_tributario', 'LUCRO REAL')}\n"
+        relatorio += f"**Regime Tributário:** {resultado.get('regime_tributario', 'LUCRO REAL')}\n"
         relatorio += f"**🔢 Impostos Analisados:** {resultado.get('impostos_analisados', 0)}\n"
-        relatorio += f"**⏰ Timestamp:** {resultado.get('timestamp_calculo', 'N/A')}\n\n"
+        relatorio += f"**Timestamp:** {resultado.get('timestamp_calculo', 'N/A')}\n\n"
         
         # Tabela resumo
         tabela_resumo = resultado.get('tabela_resumo', {})
         if tabela_resumo and tabela_resumo.get('linhas'):
-            relatorio += "## 📊 TABELA RESUMO - DELTA DE IMPOSTOS\n\n"
+            relatorio += "## TABELA RESUMO - DELTA DE IMPOSTOS\n\n"
             
             # Cabeçalho da tabela
             cabecalho = tabela_resumo.get('cabecalho', [])
@@ -486,7 +486,7 @@ Realize os cálculos considerando regime de LUCRO REAL e apresente resultados em
         # Delta de impostos detalhado
         delta_impostos = resultado.get('delta_impostos', {})
         if delta_impostos:
-            relatorio += "## 💰 ANÁLISE DETALHADA DO DELTA\n\n"
+            relatorio += "## ANÁLISE DETALHADA DO DELTA\n\n"
             
             # ICMS
             icms = delta_impostos.get('icms', {})
@@ -542,7 +542,7 @@ Realize os cálculos considerando regime de LUCRO REAL e apresente resultados em
         # Cálculo de multas
         calculo_multas = resultado.get('calculo_multas', {})
         if calculo_multas:
-            relatorio += "## ⚠️ CÁLCULO DE MULTAS POTENCIAIS\n\n"
+            relatorio += "## CÁLCULO DE MULTAS POTENCIAIS\n\n"
             
             # Resumo de multas
             if calculo_multas.get('total_multas'):
@@ -551,13 +551,13 @@ Realize os cálculos considerando regime de LUCRO REAL e apresente resultados em
                 multa_maxima = self._converter_para_numero(calculo_multas.get('multa_maxima', 0))
                 
                 relatorio += f"**💸 Total de Multas:** R$ {total_multas:,.2f}\n"
-                relatorio += f"**📉 Multa Mínima:** R$ {multa_minima:,.2f}\n"
-                relatorio += f"**📈 Multa Máxima:** R$ {multa_maxima:,.2f}\n\n"
+                relatorio += f"**Multa Mínima:** R$ {multa_minima:,.2f}\n"
+                relatorio += f"**Multa Máxima:** R$ {multa_maxima:,.2f}\n\n"
             
             # Detalhes das multas
             multas_potenciais = calculo_multas.get('multas_potenciais', [])
             if multas_potenciais:
-                relatorio += "### 📋 DETALHAMENTO DAS MULTAS\n\n"
+                relatorio += "### DETALHAMENTO DAS MULTAS\n\n"
                 
                 for i, multa in enumerate(multas_potenciais, 1):
                     relatorio += f"**{i}. {multa.get('tipo_infracao', 'N/A')}**\n"
@@ -577,40 +577,40 @@ Realize os cálculos considerando regime de LUCRO REAL e apresente resultados em
         # Análise de riscos
         analise_riscos = resultado.get('analise_riscos', {})
         if analise_riscos:
-            relatorio += "## 🎯 ANÁLISE DE RISCOS\n\n"
+            relatorio += "## ANÁLISE DE RISCOS\n\n"
             relatorio += f"**🚨 Risco de Autuação:** {analise_riscos.get('risco_autuacao', 'N/A')}\n"
             
             valor_exposicao = analise_riscos.get('valor_total_exposicao')
             if valor_exposicao is not None and valor_exposicao != 0:
                 valor_exposicao = self._converter_para_numero(valor_exposicao)
-                relatorio += f"**💰 Valor Total de Exposição:** R$ {valor_exposicao:,.2f}\n"
+                relatorio += f"**Valor Total de Exposição:** R$ {valor_exposicao:,.2f}\n"
             
             recomendacoes = analise_riscos.get('recomendacoes_urgentes', [])
             if recomendacoes:
-                relatorio += f"\n**⚡ Recomendações Urgentes:**\n"
+                relatorio += f"\n**Recomendações Urgentes:**\n"
                 for rec in recomendacoes:
                     relatorio += f"- {rec}\n"
             
             prazos = analise_riscos.get('prazos_criticos', [])
             if prazos:
-                relatorio += f"\n**⏰ Prazos Críticos:**\n"
+                relatorio += f"\n**Prazos Críticos:**\n"
                 for prazo in prazos:
                     relatorio += f"- {prazo}\n"
             relatorio += "\n"
         
         # Resumo executivo
         if resultado.get('resumo_executivo'):
-            relatorio += "## 📋 RESUMO EXECUTIVO\n\n"
+            relatorio += "## RESUMO EXECUTIVO\n\n"
             relatorio += resultado['resumo_executivo'] + "\n\n"
         
         # Detalhes técnicos
         if resultado.get('detalhes_tecnicos'):
-            relatorio += "## 🔧 DETALHES TÉCNICOS\n\n"
+            relatorio += "## DETALHES TÉCNICOS\n\n"
             relatorio += resultado['detalhes_tecnicos'] + "\n\n"
         
         # Limitações
         if resultado.get('limitacoes_calculo'):
-            relatorio += "## ⚠️ LIMITAÇÕES DO CÁLCULO\n\n"
+            relatorio += "## LIMITAÇÕES DO CÁLCULO\n\n"
             relatorio += resultado['limitacoes_calculo'] + "\n\n"
         
         # Rodapé
@@ -631,7 +631,7 @@ Realize os cálculos considerando regime de LUCRO REAL e apresente resultados em
             'tabela_resumo': {},
             'analise_riscos': {},
             'limitacoes_calculo': 'LLM não inicializada',
-            'relatorio_hibrido': "❌ **Erro:** LLM não inicializada. Verifique a configuração da GOOGLE_API_KEY.",
+            'relatorio_hibrido': "**Erro:** LLM não inicializada. Verifique a configuração da GOOGLE_API_KEY.",
             'modelo_utilizado': 'N/A',
             'timestamp_calculo': pd.Timestamp.now().strftime('%Y-%m-%d %H:%M:%S')
         }
@@ -647,7 +647,7 @@ Realize os cálculos considerando regime de LUCRO REAL e apresente resultados em
             'tabela_resumo': {},
             'analise_riscos': {},
             'limitacoes_calculo': 'Erro de formato na resposta da LLM',
-            'relatorio_hibrido': f"❌ **Erro de formato:** A LLM retornou resposta em formato inválido.\n\nResposta: {resposta[:500]}...",
+            'relatorio_hibrido': f"**Erro de formato:** A LLM retornou resposta em formato inválido.\n\nResposta: {resposta[:500]}...",
             'modelo_utilizado': getattr(self.llm, 'model_name', 'gemini') if self.llm else 'N/A',
             'timestamp_calculo': pd.Timestamp.now().strftime('%Y-%m-%d %H:%M:%S')
         }
@@ -663,7 +663,7 @@ Realize os cálculos considerando regime de LUCRO REAL e apresente resultados em
             'tabela_resumo': {},
             'analise_riscos': {},
             'limitacoes_calculo': f'Erro durante cálculo: {erro}',
-            'relatorio_hibrido': f"❌ **Erro no cálculo:** {erro}",
+            'relatorio_hibrido': f"**Erro no cálculo:** {erro}",
             'modelo_utilizado': getattr(self.llm, 'model_name', 'gemini') if self.llm else 'N/A',
             'timestamp_calculo': pd.Timestamp.now().strftime('%Y-%m-%d %H:%M:%S')
         }
@@ -704,7 +704,7 @@ def calcular_delta_tributario(cabecalho_criptografado: pd.DataFrame,
             'tabela_resumo': {},
             'analise_riscos': {},
             'limitacoes_calculo': f'Erro crítico: {str(e)}',
-            'relatorio_hibrido': f"❌ **Erro crítico:** {str(e)}",
+            'relatorio_hibrido': f"**Erro crítico:** {str(e)}",
             'modelo_utilizado': 'N/A',
             'timestamp_calculo': pd.Timestamp.now().strftime('%Y-%m-%d %H:%M:%S')
         }
@@ -778,9 +778,9 @@ if __name__ == "__main__":
     )
     
     print(f"🧮 Status: {resultado['status']}")
-    print(f"📊 Regime: {resultado['regime_tributario']}")
+    print(f"Regime: {resultado['regime_tributario']}")
     print(f"🔢 Impostos analisados: {resultado['impostos_analisados']}")
-    print(f"🤖 Modelo: {resultado.get('modelo_utilizado', 'N/A')}")
+    print(f"Modelo: {resultado.get('modelo_utilizado', 'N/A')}")
     
     print("\n" + "="*70)
     print("RELATÓRIO HÍBRIDO:")

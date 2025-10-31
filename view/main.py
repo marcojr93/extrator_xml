@@ -4,8 +4,6 @@ import xml.etree.ElementTree as ET
 from io import BytesIO
 from criptografia import SecureDataProcessor
 from agents.validador import buscar_regras_fiscais_nfe
-from agents.analista import analisar_discrepancias_nfe
-from agents.tributarista import calcular_delta_tributario
 
 
 
@@ -149,9 +147,31 @@ def extrair_dados_xml(xml_content):
 # ==============================
 def welcome_screen():
     """Tela principal da aplicação XML Reader"""
+    # Sistema de abas para evitar perda de dados na navegação
+    if st.session_state.get('agentes_processados', False):
+        # Se agentes foram processados, mostrar seletor de modo
+        # Definir índice baseado no estado da navegação
+        indice_inicial = 1 if st.session_state.get('navegacao_revisao', False) else 0
+        
+        modo = st.selectbox(
+            "Selecione o modo:",
+            ["Processamento de XML", "Revisão e Edição"],
+            index=indice_inicial,
+            key="modo_selecao"
+        )
+        
+        # Atualizar estado baseado na seleção
+        if modo == "Revisão e Edição":
+            st.session_state.navegacao_revisao = True
+            # Importar e executar função de revisão diretamente
+            from view.revisao import exibir_pagina_revisao
+            exibir_pagina_revisao()
+            return  # Sair da função para não mostrar o resto
+        else:
+            st.session_state.navegacao_revisao = False
     
     # Código atual do Streamlit (extrair_dados_xml interface)
-    st.title("🧾 Extrator de Nota Fiscal Eletrônica (NF-e XML)")
+    st.title("Extrator de Nota Fiscal Eletrônica (NF-e XML)")
 
     uploaded_file = st.file_uploader("Selecione o arquivo XML da NF-e", type=["xml"])
 
@@ -169,12 +189,27 @@ def welcome_screen():
         # Criptografar produtos  
         produtos_criptografado = processor.encrypt_sensitive_data(produtos_df)
         
-        # Manter expandables normais + adicionar dropdown criptografado
-        with st.expander("Dados Gerais da NF-e", expanded=True):
-            st.dataframe(cabecalho_df.T, use_container_width=True)
+        # Salvar dados na sessão para edição imediata
+        st.session_state.cabecalho_df = cabecalho_criptografado
+        st.session_state.produtos_df = produtos_criptografado
+        st.session_state.arquivo_xml_nome = uploaded_file.name
+        st.session_state.xml_carregado = True
+        
+        # Mostrar seletor de modo logo após upload
+        modo = st.selectbox(
+            "Selecione o modo:",
+            ["Visualização dos Dados", "Edição do XML", "Análise com IA"],
+            index=0,
+            key="modo_pos_upload"
+        )
+        
+        if modo == "Visualização dos Dados":
+            # Manter expandables normais + adicionar dropdown criptografado
+            with st.expander("Dados Gerais da NF-e", expanded=True):
+                st.dataframe(cabecalho_df.T, use_container_width=True)
 
-        with st.expander("Produtos e Impostos Detalhados", expanded=False):
-            st.dataframe(produtos_df, use_container_width=True)
+            with st.expander("Produtos e Impostos Detalhados", expanded=False):
+                st.dataframe(produtos_df, use_container_width=True)
 
         # NOVO - Dropdown para dados criptografados
         with st.expander("Dados Criptografados", expanded=False):
@@ -197,11 +232,6 @@ def welcome_screen():
                         cabecalho_criptografado, 
                         produtos_criptografado
                     )
-                    
-                    # Armazenar resultado no session_state para uso posterior
-                    st.session_state['resultado_validador'] = resultado
-                    st.session_state['cabecalho_dados'] = cabecalho_criptografado
-                    st.session_state['produtos_dados'] = produtos_criptografado
                     
                     if resultado['status'] == 'sucesso':
                         # Mostrar dropdown com resumo das regras
@@ -460,4 +490,303 @@ def welcome_screen():
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         )
 
-        st.success("✅ Extração concluída com sucesso!")
+        st.success("Extração concluída com sucesso!")
+
+
+def exibir_resultados_processamento():
+    """Exibe os resultados do processamento dos agentes a partir do session_state"""
+    try:
+        # Recuperar dados do session_state
+        resultado_validador = st.session_state.get('resultado_validador', {})
+        resultado_analista = st.session_state.get('resultado_analista', {})
+        resultado_tributarista = st.session_state.get('resultado_tributarista', {})
+        resumo_execucao = st.session_state.get('resumo_execucao', {})
+        arquivo_nome = st.session_state.get('arquivo_xml_nome', 'arquivo')
+        timestamp_proc = st.session_state.get('timestamp_processamento', 'unknown')
+        
+        # Recriar resultado_completo
+        resultado_completo = {
+            'status': 'sucesso',
+            'validador': resultado_validador,
+            'analista': resultado_analista, 
+            'tributarista': resultado_tributarista,
+            'resumo_execucao': resumo_execucao,
+            'timestamp_processamento': timestamp_proc
+        }
+        
+        # Exibir resumo executivo
+        st.success("Processamento concluído com sucesso!")
+        
+        # Mostrar resumo executivo
+        col1, col2, col3, col4 = st.columns(4)
+        with col1:
+            st.metric("Oportunidades", resumo_execucao.get('total_oportunidades', 0))
+        with col2:
+            st.metric("Discrepâncias", resumo_execucao.get('total_discrepancias', 0))
+        with col3:
+            st.metric("Soluções", resumo_execucao.get('total_solucoes', 0))
+        with col4:
+            st.metric("Produtos", resumo_execucao.get('produtos_analisados', 0))
+        
+        # Botões de ação
+        st.info("Dados processados e salvos na sessão. Clique para revisar:")
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            if st.button("Ir para Revisão", type="primary", key="goto_revisao_persistent"):
+                st.session_state.navegacao_revisao = True
+                st.success("Clique em 'Revisão e Edição' no seletor acima para continuar!")
+        
+        with col2:
+            # Gerar PDF com key único para evitar conflitos
+            try:
+                pdf_data = gerar_relatorio_pdf(resultado_completo, arquivo_nome)
+                if pdf_data:
+                    st.download_button(
+                        label="Download Relatório PDF",
+                        data=pdf_data,
+                        file_name=f"relatorio_fiscal_{timestamp_proc.replace(':', '-')[:19]}.pdf",
+                        mime="application/pdf",
+                        type="secondary",
+                        key="download_pdf_persistent"
+                    )
+                else:
+                    st.error("Erro ao gerar relatório PDF")
+            except Exception as e:
+                st.error(f"Erro ao gerar PDF: {str(e)}")
+        
+        # Dropdown para visualizar relatório tributarista
+        resultado_tributarista = resultado_completo.get('tributarista', {})
+        if resultado_tributarista.get('relatorio_hibrido'):
+            with st.expander("Ver Relatório Tributário Completo"):
+                st.markdown(resultado_tributarista['relatorio_hibrido'])
+        
+    except Exception as e:
+        st.error(f"Erro ao exibir resultados: {str(e)}")
+        st.session_state.agentes_processados = False
+
+def salvar_dados_temporarios(cabecalho_df, produtos_df, resultado_completo, nome_arquivo):
+    """Salva dados em arquivo temporário JSON para persistência"""
+    import json
+    import os
+    from datetime import datetime
+    
+    try:
+        dados_temporarios = {
+            'timestamp_salvamento': datetime.now().isoformat(),
+            'arquivo_xml_nome': nome_arquivo,
+            'cabecalho_df': cabecalho_df.to_dict('records'),
+            'produtos_df': produtos_df.to_dict('records'),
+            'resultado_validador': resultado_completo.get('validador', {}),
+            'resultado_analista': resultado_completo.get('analista', {}),
+            'resultado_tributarista': resultado_completo.get('tributarista', {}),
+            'resumo_execucao': resultado_completo.get('resumo_execucao', {}),
+            'timestamp_processamento': resultado_completo.get('timestamp_processamento')
+        }
+        
+        # Salvar no diretório raiz do projeto
+        base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        arquivo_temp = os.path.join(base_dir, 'temp_nfe_data.json')
+        
+        with open(arquivo_temp, 'w', encoding='utf-8') as f:
+            json.dump(dados_temporarios, f, ensure_ascii=False, indent=2)
+            
+        st.success("Dados salvos em arquivo temporário")
+        
+    except Exception as e:
+        st.warning(f"Erro ao salvar dados temporários: {str(e)}")
+
+
+def gerar_relatorio_pdf(resultado_completo, nome_arquivo):
+    """Gera relatório PDF com insights dos 3 agentes"""
+    try:
+        from reportlab.lib.pagesizes import letter, A4
+        from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+        from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+        from reportlab.lib.units import inch
+        from reportlab.lib import colors
+        from io import BytesIO
+        from datetime import datetime
+        
+        # Buffer para PDF
+        buffer = BytesIO()
+        doc = SimpleDocTemplate(buffer, pagesize=A4)
+        styles = getSampleStyleSheet()
+        story = []
+        
+        # Título
+        titulo_style = ParagraphStyle('CustomTitle', parent=styles['Title'], fontSize=18, spaceAfter=30)
+        story.append(Paragraph("Relatório de Análise Fiscal", titulo_style))
+        story.append(Spacer(1, 12))
+        
+        # Informações básicas
+        story.append(Paragraph(f"<b>Arquivo:</b> {nome_arquivo}", styles['Normal']))
+        story.append(Paragraph(f"<b>Data do Processamento:</b> {datetime.now().strftime('%d/%m/%Y %H:%M:%S')}", styles['Normal']))
+        story.append(Spacer(1, 20))
+        
+        # Resumo Executivo
+        resumo = resultado_completo.get('resumo_execucao', {})
+        story.append(Paragraph("<b>RESUMO EXECUTIVO</b>", styles['Heading2']))
+        
+        # Tabela de métricas
+        dados_metricas = [
+            ['Métrica', 'Valor'],
+            ['Produtos Analisados', str(resumo.get('produtos_analisados', 0))],
+            ['Oportunidades Identificadas', str(resumo.get('total_oportunidades', 0))],
+            ['Discrepâncias Encontradas', str(resumo.get('total_discrepancias', 0))],
+            ['Soluções Propostas', str(resumo.get('total_solucoes', 0))]
+        ]
+        
+        tabela_metricas = Table(dados_metricas)
+        tabela_metricas.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, 0), 14),
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+            ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
+            ('GRID', (0, 0), (-1, -1), 1, colors.black)
+        ]))
+        
+        story.append(tabela_metricas)
+        story.append(Spacer(1, 20))
+        
+        # Oportunidades do Validador
+        validador = resultado_completo.get('validador', {})
+        oportunidades = validador.get('oportunidades', [])
+        
+        if oportunidades:
+            story.append(Paragraph("<b>OPORTUNIDADES IDENTIFICADAS</b>", styles['Heading2']))
+            for i, oport in enumerate(oportunidades, 1):
+                story.append(Paragraph(f"<b>{i}. {oport.get('tipo', 'N/A')}</b>", styles['Heading3']))
+                story.append(Paragraph(f"<b>Produto:</b> {oport.get('produto', 'N/A')}", styles['Normal']))
+                story.append(Paragraph(f"<b>Descrição:</b> {oport.get('descricao', 'N/A')}", styles['Normal']))
+                story.append(Paragraph(f"<b>Impacto:</b> {oport.get('impacto', 'N/A')}", styles['Normal']))
+                story.append(Paragraph(f"<b>Ação Recomendada:</b> {oport.get('acao_recomendada', 'N/A')}", styles['Normal']))
+                story.append(Spacer(1, 12))
+        
+        # Discrepâncias
+        discrepancias = validador.get('discrepancias', [])
+        if discrepancias:
+            story.append(Paragraph("<b>DISCREPÂNCIAS ENCONTRADAS</b>", styles['Heading2']))
+            for i, disc in enumerate(discrepancias, 1):
+                story.append(Paragraph(f"<b>{i}. {disc.get('tipo', 'N/A')} ({disc.get('gravidade', 'N/A')})</b>", styles['Heading3']))
+                story.append(Paragraph(f"<b>Produto:</b> {disc.get('produto', 'N/A')}", styles['Normal']))
+                story.append(Paragraph(f"<b>Problema:</b> {disc.get('problema', 'N/A')}", styles['Normal']))
+                story.append(Paragraph(f"<b>Correção:</b> {disc.get('correcao', 'N/A')}", styles['Normal']))
+                story.append(Spacer(1, 12))
+
+        # Relatório Final do Analista (se disponível)
+        analista = resultado_completo.get('analista', {})
+        if analista.get('status') == 'sucesso' and analista.get('relatorio_final'):
+            story.append(Paragraph("<b>ANÁLISE DETALHADA DO ANALISTA</b>", styles['Heading2']))
+            story.append(Spacer(1, 12))
+            
+            # Processar relatório final do analista (markdown)
+            relatorio_analista = analista.get('relatorio_final', '')
+            
+            # Processar markdown simples
+            linhas_analista = relatorio_analista.split('\n')
+            for linha in linhas_analista:
+                linha = linha.strip()
+                if not linha:
+                    story.append(Spacer(1, 6))
+                    continue
+                
+                if linha.startswith('##'):
+                    titulo = linha.replace('##', '').strip()
+                    story.append(Paragraph(f"<b>{titulo}</b>", styles['Heading3']))
+                elif linha.startswith('**') and linha.endswith('**'):
+                    texto_negrito = linha.replace('**', '').strip()
+                    story.append(Paragraph(f"<b>{texto_negrito}</b>", styles['Normal']))
+                elif linha.startswith('- '):
+                    item = linha.replace('- ', '').strip()
+                    story.append(Paragraph(f"• {item}", styles['Normal']))
+                else:
+                    if linha and not linha.startswith('---'):
+                        story.append(Paragraph(linha, styles['Normal']))
+            
+            story.append(Spacer(1, 20))
+        
+        # Relatório Híbrido do Tributarista (COMPLETO)
+        tributarista = resultado_completo.get('tributarista', {})
+        if tributarista.get('status') == 'sucesso' and tributarista.get('relatorio_hibrido'):
+            story.append(Paragraph("<b>RELATÓRIO TRIBUTÁRIO COMPLETO</b>", styles['Heading2']))
+            story.append(Spacer(1, 12))
+            
+            # Converter markdown do relatório híbrido para PDF
+            relatorio_markdown = tributarista.get('relatorio_hibrido', '')
+            
+            # Processar o markdown linha por linha
+            linhas = relatorio_markdown.split('\n')
+            for linha in linhas:
+                linha = linha.strip()
+                if not linha:
+                    story.append(Spacer(1, 6))
+                    continue
+                
+                # Títulos principais (##)
+                if linha.startswith('## '):
+                    titulo = linha.replace('## ', '').strip()
+                    story.append(Paragraph(f"<b>{titulo}</b>", styles['Heading3']))
+                    story.append(Spacer(1, 8))
+                
+                # Títulos secundários (###)
+                elif linha.startswith('### '):
+                    subtitulo = linha.replace('### ', '').strip()
+                    story.append(Paragraph(f"<b>{subtitulo}</b>", styles['Heading4']))
+                    story.append(Spacer(1, 6))
+                
+                # Título principal (#)
+                elif linha.startswith('# '):
+                    titulo_principal = linha.replace('# ', '').strip()
+                    story.append(Paragraph(f"<b>{titulo_principal}</b>", styles['Heading2']))
+                    story.append(Spacer(1, 10))
+                
+                # Tabelas markdown (|)
+                elif '|' in linha and not linha.startswith('|---'):
+                    # Processar tabela markdown simples
+                    colunas = [col.strip() for col in linha.split('|') if col.strip()]
+                    if colunas:
+                        # Criar linha de tabela simples
+                        linha_tabela = ' | '.join(colunas)
+                        story.append(Paragraph(linha_tabela, styles['Normal']))
+                
+                # Lista com bullet points (-)
+                elif linha.startswith('- '):
+                    item = linha.replace('- ', '').strip()
+                    story.append(Paragraph(f"• {item}", styles['Normal']))
+                
+                # Texto em negrito (**texto**)
+                elif '**' in linha:
+                    # Substituir **texto** por <b>texto</b>
+                    linha_formatada = linha.replace('**', '<b>', 1).replace('**', '</b>', 1)
+                    # Continuar substituindo se houver mais
+                    while '**' in linha_formatada:
+                        linha_formatada = linha_formatada.replace('**', '<b>', 1).replace('**', '</b>', 1)
+                    story.append(Paragraph(linha_formatada, styles['Normal']))
+                
+                # Separadores (---)
+                elif linha.startswith('---'):
+                    story.append(Spacer(1, 12))
+                
+                # Texto normal
+                else:
+                    if linha:
+                        story.append(Paragraph(linha, styles['Normal']))
+            
+            story.append(Spacer(1, 20))
+        
+        # Gerar PDF
+        doc.build(story)
+        buffer.seek(0)
+        return buffer.getvalue()
+        
+    except ImportError:
+        st.error("Biblioteca reportlab não instalada. Execute: pip install reportlab")
+        return None
+    except Exception as e:
+        st.error(f"Erro ao gerar PDF: {str(e)}")
+        return None

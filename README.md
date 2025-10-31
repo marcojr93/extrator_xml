@@ -12,29 +12,6 @@ Sistema especializado em **regime LUCRO REAL** que automatiza a análise fiscal 
 
 ## 🚀 Funcionalidades Principais
 
-### 🤖 **Sistema de Agentes IA Especializados**
-
-#### 🔍 **Agente Validador Fiscal**
-- **Validação automática** de impostos (ICMS, PIS/COFINS, IPI)
-- **Detecção de discrepâncias** em alíquotas e cálculos
-- **Identificação de oportunidades** fiscais
-- **Análise por UF** com mapeamento inteligente de códigos
-- **Classificação de gravidade** dos problemas encontrados
-
-#### 🎯 **Agente Analista Fiscal**
-- **Análise detalhada** das discrepâncias identificadas
-- **Proposição de soluções** específicas para cada problema
-- **Plano de ação consolidado** com priorização
-- **Identificação de riscos** e oportunidades adicionais
-- **Relatórios executivos** com insights estratégicos
-
-#### 🧮 **Agente Tributarista Fiscal**
-- **Cálculo de delta tributário** (pago vs. devido)
-- **Cálculo de multas potenciais** conforme legislação
-- **Análise quantitativa** com tabelas e métricas
-- **Relatórios híbridos** (tabelas + análises textuais)
-- **Avaliação de riscos** de autuação fiscal
-
 ### 🔐 **Sistema de Autenticação BYOK**
 - **Login seguro** com configuração de LLM personalizada
 - **Integração LangChain** para validação robusta de APIs
@@ -42,13 +19,15 @@ Sistema especializado em **regime LUCRO REAL** que automatiza a análise fiscal 
 - **Validação automática** de API keys em tempo real
 - **Detecção inteligente** do melhor modelo disponível
 - **Sistema de fallback** para máxima compatibilidade
+- **Armazenamento seguro** apenas na sessão local
 
-### 📊 **Processamento Avançado de NF-e**
-- **Leitura inteligente** de arquivos XML de NF-e
-- **Extração automática** de dados tributários
-- **Processamento de múltiplos produtos** por nota
-- **Identificação automática** de UFs e regimes
-- **Análise de operações** internas e interestaduais
+### 📊 **Processamento de Documentos**
+- **Leitura de arquivos SPED Fiscal (.txt)**: Extrai registros e campos dos blocos SPED
+- **Leitura de arquivos NF-e (.xml)**: Extrai informações principais como:
+  - Dados do emitente e destinatário
+  - Informações da nota fiscal (número, série, data)
+  - Lista de produtos/itens
+  - Totais e valores
 
 ### 🔒 **Criptografia e Segurança**
 - **Proteção automática** de dados sensíveis (CPF, CNPJ, valores)
